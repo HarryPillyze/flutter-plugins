@@ -1008,6 +1008,49 @@ ActivityResultListener, Result, ActivityAware, FlutterPlugin {
       )
   }
 
+  private fun getTotalActiveEnergyBurnedInInterval(call: MethodCall, result: Result) {
+    val start = call.argument<Long>("startTime")!!
+    val end = call.argument<Long>("endTime")!!
+
+    val context = context ?: return
+
+    val stepsDataType = keyToHealthDataType(STEPS)
+    val aggregatedDataType = keyToHealthDataType(AGGREGATE_STEP_COUNT)
+
+    val fitnessOptions = FitnessOptions.builder()
+            .addDataType(stepsDataType)
+            .addDataType(aggregatedDataType)
+            .build()
+    val gsa = GoogleSignIn.getAccountForExtension(context, fitnessOptions)
+
+    val ds = DataSource.Builder()
+            .setAppPackageName("com.google.android.gms")
+            .setDataType(stepsDataType)
+            .setType(DataSource.TYPE_DERIVED)
+            .setStreamName("estimated_steps")
+            .build()
+
+    val duration = (end - start).toInt()
+
+    val request = DataReadRequest.Builder()
+            .aggregate(ds)
+            .bucketByTime(duration, TimeUnit.MILLISECONDS)
+            .setTimeRange(start, end, TimeUnit.MILLISECONDS)
+            .build()
+
+    Fitness.getHistoryClient(context, gsa).readData(request)
+            .addOnFailureListener(
+                    errHandler(
+                            result,
+                            "There was an error getting the total steps in the interval!"
+                    )
+            )
+            .addOnSuccessListener(
+                    threadPoolExecutor!!,
+                    getStepsInRange(start, end, aggregatedDataType, result)
+            )
+  }
+
   private fun getStepsInRange(
     start: Long,
     end: Long,

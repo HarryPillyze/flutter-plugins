@@ -476,6 +476,21 @@ class HealthFactory {
     return stepsCount;
   }
 
+  Future<int?> getTotalActiveEnergyBurnedInInterval(
+      DateTime startTime,
+      DateTime endTime,
+      ) async {
+    final args = <String, dynamic>{
+      'startTime': startTime.millisecondsSinceEpoch,
+      'endTime': endTime.millisecondsSinceEpoch
+    };
+    final stepsCount = await _channel.invokeMethod<int?>(
+      'getTotalActiveEnergyBurnedInInterval',
+      args,
+    );
+    return stepsCount;
+  }
+
   int _alignValue(HealthDataType type) {
     switch (type) {
       case HealthDataType.SLEEP_IN_BED:

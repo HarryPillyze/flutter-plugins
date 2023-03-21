@@ -140,7 +140,12 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         else if (call.method.elementsEqual("getTotalStepsInInterval")){
             getTotalStepsInInterval(call: call, result: result)
         }
-        
+
+        /// Handle getTotalActiveEnergyBurnedInInterval
+        else if (call.method.elementsEqual("getTotalActiveEnergyBurnedInInterval")){
+            getTotalActiveEnergyBurnedInInterval(call: call, result: result)
+        }
+
         /// Handle writeData
         else if (call.method.elementsEqual("writeData")){
             try! writeData(call: call, result: result)
@@ -654,6 +659,48 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
             }
         }
         
+        HKHealthStore().execute(query)
+    }
+
+    func getTotalActiveEnergyBurnedInInterval(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        let arguments = call.arguments as? NSDictionary
+        let startTime = (arguments?["startTime"] as? NSNumber) ?? 0
+        let endTime = (arguments?["endTime"] as? NSNumber) ?? 0
+
+        // Convert dates from milliseconds to Date()
+        let dateFrom = Date(timeIntervalSince1970: startTime.doubleValue / 1000)
+        let dateTo = Date(timeIntervalSince1970: endTime.doubleValue / 1000)
+
+        let sampleType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
+        let predicate = HKQuery.predicateForSamples(withStart: dateFrom, end: dateTo, options: .strictStartDate)
+
+        let query = HKStatisticsQuery(quantityType: sampleType,
+                                      quantitySamplePredicate: predicate,
+                                      options: .cumulativeSum) { query, queryResult, error in
+
+            guard let queryResult = queryResult else {
+                let error = error! as NSError
+                print("Error getting total steps in interval \(error.localizedDescription)")
+
+                DispatchQueue.main.async {
+                    result(nil)
+                }
+                return
+            }
+
+            var steps = 0.0
+
+            if let quantity = queryResult.sumQuantity() {
+                let unit = HKUnit.kilocalorie()
+                steps = quantity.doubleValue(for: unit)
+            }
+
+            let totalSteps = Int(steps)
+            DispatchQueue.main.async {
+                result(totalSteps)
+            }
+        }
+
         HKHealthStore().execute(query)
     }
     
